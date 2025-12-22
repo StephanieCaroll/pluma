@@ -15,6 +15,7 @@ import { FooterComponent } from '../../MenuSistema';
 import '@fontsource/cinzel';
 import '@fontsource/crimson-text';
 
+// Definição do Tema
 const gothicTheme = createTheme({
   palette: {
     mode: 'dark',
@@ -162,6 +163,7 @@ const Favoritos = () => {
                     <Typography variant="h4" sx={{ color: 'secondary.main', fontFamily: 'Cinzel' }}>{selectedProduto.titulo}</Typography>
                     <Typography variant="body1" sx={{ my: 2 }}>{selectedProduto.descricao}</Typography>
                     
+                    {/* Botão Dinâmico: Ler ou Adicionar ao Carrinho */}
                     {meusLivrosIds.includes(selectedProduto.id) ? (
                       <Button 
                         fullWidth variant="contained" color="success" 
