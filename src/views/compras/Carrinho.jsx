@@ -1,322 +1,247 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import {
-  Typography,
-  Box,
-  Button,
-  Container,
-  Paper,
-  IconButton,
-  Divider,
-  CssBaseline,
-  Fade
+  Typography, Box, Button, Container, Paper, IconButton, Divider, CssBaseline, 
+  CircularProgress, Modal, TextField, Grid, Snackbar, Alert, Radio, RadioGroup, 
+  FormControlLabel, FormControl
 } from '@mui/material';
-import { Add as AddIcon, Remove as RemoveIcon, Delete as DeleteIcon } from '@mui/icons-material';
-import '@fontsource/cinzel';
-import '@fontsource/crimson-text';
+import { 
+  Delete as DeleteIcon, 
+  Payment as PaymentIcon, 
+  QrCode as QrCodeIcon, 
+  Close as CloseIcon,
+  MenuBook as BookIcon 
+} from '@mui/icons-material';
+import { supabase } from '../../services/supabaseClient';
+import { FooterComponent } from '../../MenuSistema';
 
-// O tema foi replicado aqui para que o componente seja autossuficiente.
 const gothicTheme = createTheme({
   palette: {
     mode: 'dark',
-    primary: {
-      main: '#280000',
-      light: '#450000',
-      dark: '#1a0000'
-    },
-    secondary: {
-      main: '#C7A34F',
-      light: '#E8C87E',
-      dark: '#A3873A'
-    },
-    background: {
-      default: '#0A0A0A',
-      paper: '#121212'
-    },
-    text: {
-      primary: '#F0F0F0',
-      secondary: '#C7A34F'
-    }
-  },
-  typography: {
-    fontFamily: '"Cinzel", "Playfair Display", serif',
-    h1: {
-      fontSize: '3.5rem',
-      fontWeight: 700,
-      letterSpacing: '0.1em'
-    },
-    h2: {
-      fontSize: '2.5rem',
-      fontWeight: 600,
-      letterSpacing: '0.05em'
-    },
-    h4: {
-      color: '#C7A34F',
-      fontWeight: 500,
-      letterSpacing: '0.05em'
-    },
-    h5: {
-      fontWeight: 400,
-      fontStyle: 'italic',
-      letterSpacing: '0.03em'
-    },
-    body1: {
-      fontFamily: '"Crimson Text", serif',
-      fontSize: '1.1rem',
-      lineHeight: 1.6
-    }
-  },
-  components: {
-    MuiCssBaseline: {
-      styleOverrides: {
-        'html, body': {
-          margin: 0,
-          padding: 0,
-          height: '100%',
-          width: '100%',
-        },
-        '@global': {
-          '@font-face': [
-            {
-              fontFamily: 'Cinzel',
-              fontStyle: 'normal',
-              fontDisplay: 'swap'
-            }
-          ],
-          body: {
-            scrollBehavior: 'smooth'
-          }
-        }
-      }
-    },
-    MuiButton: {
-      styleOverrides: {
-        root: {
-          borderRadius: 0,
-          padding: '8px 24px',
-          textTransform: 'uppercase',
-          letterSpacing: '0.1em',
-          transition: 'all 0.3s ease',
-          '&:hover': {
-            transform: 'translateY(-2px)'
-          }
-        },
-        containedSecondary: {
-          color: '#0A0A0A',
-          '&:hover': {
-            backgroundColor: '#E8C87E'
-          }
-        }
-      }
-    },
-    MuiPaper: {
-      styleOverrides: {
-        root: {
-          backgroundColor: 'rgba(18, 18, 18, 0.8)',
-          border: '1px solid rgba(199, 163, 79, 0.2)',
-          backdropFilter: 'blur(4px)'
-        }
-      }
-    }
+    primary: { main: '#280000' },
+    secondary: { main: '#C7A34F' },
+    background: { default: '#0A0A0A', paper: '#121212' },
+    text: { primary: '#F0F0F0', secondary: '#C7A34F' }
   }
 });
 
-// Dados de exemplo para o carrinho
-const mockCartItems = [
-  { id: 1, name: 'Diário de um Lorde', price: 29.99, quantity: 1, imageUrl: 'https://placehold.co/100x150/1a1a1a/c7a34f?text=Livro+1' },
-  { id: 2, name: 'Poesias da Meia-Noite', price: 19.50, quantity: 2, imageUrl: 'https://placehold.co/100x150/1a1a1a/c7a34f?text=Livro+2' },
-  { id: 3, name: 'Contos do Crepúsculo', price: 35.00, quantity: 1, imageUrl: 'https://placehold.co/100x150/1a1a1a/c7a34f?text=Livro+3' }
-];
+const modalStyle = {
+  position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+  width: { xs: '95%', sm: 500 }, bgcolor: '#121212', border: '2px solid #C7A34F',
+  boxShadow: 24, p: 4, outline: 'none'
+};
+
+const pdfModalStyle = {
+  position: 'absolute', top: '5%', left: '5%', width: '90%', height: '90%',
+  bgcolor: '#000', border: '2px solid #C7A34F', boxShadow: 24, outline: 'none',
+  display: 'flex', flexDirection: 'column'
+};
 
 const Carrinho = () => {
   const navigate = useNavigate();
-  const [cartItems, setCartItems] = useState(mockCartItems);
+  const [cartItems, setCartItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [estaLogado, setEstaLogado] = useState(true);
+  
+  // Estados de Pagamento
+  const [openCheckout, setOpenCheckout] = useState(false);
+  const [metodoPagamento, setMetodoPagamento] = useState('cartao');
+  const [finalizando, setFinalizando] = useState(false);
+  
+  // Estados de Entrega (PDF)
+  const [openEntrega, setOpenEntrega] = useState(false);
+  const [livrosComprados, setLivrosComprados] = useState([]);
+  const [pdfAtivo, setPdfAtivo] = useState(null);
 
-  // Função para remover um item do carrinho
-  const handleRemoveItem = (id) => {
-    setCartItems(cartItems.filter(item => item.id !== id));
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+
+  const fetchCart = async () => {
+    try {
+      setLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setEstaLogado(false); setLoading(false); return; }
+
+      const { data, error } = await supabase
+        .from('carrinho')
+        .select('id, produto_id, produtos(titulo, preco, url_capa, url_arquivo_pdf)')
+        .eq('usuario_id', user.id);
+
+      if (error) throw error;
+      setCartItems(data.map(item => ({
+        id: item.id,
+        produto_id: item.produto_id,
+        name: item.produtos.titulo,
+        price: item.produtos.preco,
+        imageUrl: item.produtos.url_capa,
+        pdfUrl: item.produtos.url_arquivo_pdf
+      })));
+    } catch (error) {
+      console.error(error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Função para ajustar a quantidade de um item
-  const handleUpdateQuantity = (id, newQuantity) => {
-    setCartItems(
-      cartItems.map(item =>
-        item.id === id ? { ...item, quantity: newQuantity > 0 ? newQuantity : 1 } : item
-      )
+  useEffect(() => { fetchCart(); }, []);
+
+  const handleRemoveItem = async (id) => {
+    const { error } = await supabase.from('carrinho').delete().eq('id', id);
+    if (!error) setCartItems(prev => prev.filter(item => item.id !== id));
+  };
+
+  const subtotal = cartItems.reduce((acc, item) => acc + item.price, 0);
+
+  const handleFinalizarPagamento = async () => {
+    setFinalizando(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const ids = cartItems.map(item => item.produto_id);
+     
+      const { error: orderError } = await supabase
+        .from('pedidos')
+        .insert([{ usuario_id: user.id, total: subtotal, status: 'pago', produtos_ids: ids }]);
+      if (orderError) throw orderError;
+
+      await supabase.from('carrinho').delete().eq('usuario_id', user.id);
+
+      setLivrosComprados([...cartItems]);
+      setOpenCheckout(false);
+      setOpenEntrega(true);
+      
+      setSnackbar({ open: true, message: 'Ritual completo! Seus manuscritos foram liberados.', severity: 'success' });
+    } catch (error) {
+      setSnackbar({ open: true, message: 'Falha no processo: ' + error.message, severity: 'error' });
+    } finally {
+      setFinalizando(false);
+    }
+  };
+
+  if (!estaLogado) {
+    return (
+      <ThemeProvider theme={gothicTheme}>
+        <CssBaseline /><Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', bgcolor: '#0A0A0A' }}>
+          <Container maxWidth="sm" sx={{ py: 10, flexGrow: 1 }}>
+            <Paper sx={{ p: 4, textAlign: 'center', border: '1px solid #C7A34F' }}>
+              <Typography variant="h5" sx={{ mb: 3, color: 'secondary.main', fontFamily: 'Cinzel' }}>Acesso Restrito</Typography>
+              <Button variant="contained" color="secondary" onClick={() => navigate('/form-login')}>Entrar Agora</Button>
+            </Paper>
+          </Container><FooterComponent /></Box>
+      </ThemeProvider>
     );
-  };
-
-  // Calcula o total do carrinho
-  const subtotal = cartItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
-
-  // Função para voltar à página anterior
-  const handleGoBack = () => {
-    navigate("/");
-  };
+  }
 
   return (
     <ThemeProvider theme={gothicTheme}>
       <CssBaseline />
-      <Box
-        sx={{
-          minHeight: '100vh',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          backgroundImage: 'linear-gradient(to bottom, #0A0A0A, #1A1A1A)',
-          p: 2,
-          position: 'relative',
-          overflow: 'hidden',
-        }}
-      >
-        <Container maxWidth="md">
-          <Paper
-            elevation={8}
-            sx={{
-              p: { xs: 4, md: 6 },
-              boxShadow: '0 8px 32px 0 rgba(0,0,0,0.3)',
-              border: '1px solid rgba(199, 163, 79, 0.3)',
-              position: 'relative',
-            }}
-          >
-            {/* Botão de voltar */}
-            <Box
-              onClick={handleGoBack}
-              sx={{
-                position: 'absolute',
-                top: { xs: 16, md: 24 },
-                left: { xs: 16, md: 24 },
-                p: 1,
-                borderRadius: '50%',
-                backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                cursor: 'pointer',
-                transition: 'background-color 0.3s ease, transform 0.3s ease',
-                '&:hover': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                  transform: 'scale(1.1)'
-                }
-              }}
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                style={{ color: '#C7A34F' }}
-              >
-                <path d="M19 12H5M12 19l-7-7 7-7" />
-              </svg>
-            </Box>
+      <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', bgcolor: '#0A0A0A' }}>
+        <Container maxWidth="md" sx={{ py: 8, flexGrow: 1 }}>
+          <Paper elevation={8} sx={{ p: { xs: 3, md: 6 }, border: '1px solid rgba(199, 163, 79, 0.3)', bgcolor: '#121212' }}>
+            <Typography variant="h2" align="center" sx={{ color: 'secondary.main', mb: 6, fontFamily: 'Cinzel' }}>Seu Carrinho</Typography>
 
-            <Typography
-              variant="h2"
-              component="h1"
-              gutterBottom
-              align="center"
-              sx={{
-                color: 'secondary.main',
-                textShadow: '0 0 5px rgba(199, 163, 79, 0.5)',
-                mb: 4
-              }}
-            >
-              Seu Carrinho
-            </Typography>
-
-            {cartItems.length > 0 ? (
+            {loading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress color="secondary" /></Box>
+            ) : cartItems.length > 0 ? (
               <Box>
                 {cartItems.map((item) => (
                   <Box key={item.id}>
-                    <Box
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 2,
-                        py: 2,
-                        flexDirection: { xs: 'column', sm: 'row' },
-                        textAlign: { xs: 'center', sm: 'left' },
-                      }}
-                    >
-                      <Box
-                        component="img"
-                        src={item.imageUrl}
-                        alt={item.name}
-                        sx={{
-                          width: 100,
-                          height: 150,
-                          objectFit: 'cover',
-                          borderRadius: '4px',
-                          border: '1px solid rgba(199, 163, 79, 0.2)',
-                        }}
-                      />
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, py: 3, flexDirection: { xs: 'column', sm: 'row' } }}>
+                      <Box component="img" src={item.imageUrl} sx={{ width: 80, height: 110, objectFit: 'cover', border: '1px solid #C7A34F' }} />
                       <Box sx={{ flexGrow: 1 }}>
-                        <Typography variant="h5" sx={{ color: 'text.primary', fontWeight: 'bold' }}>
-                          {item.name}
-                        </Typography>
-                        <Typography variant="body1" sx={{ color: 'text.secondary', mt: 0.5 }}>
-                          ${item.price.toFixed(2)}
-                        </Typography>
+                        <Typography variant="h6" sx={{ fontFamily: 'Cinzel' }}>{item.name}</Typography>
+                        <Typography variant="body1" sx={{ color: 'secondary.main' }}>R$ {item.price.toFixed(2)}</Typography>
                       </Box>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: { xs: 2, sm: 0 } }}>
-                        <IconButton
-                          aria-label="diminuir quantidade"
-                          onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}
-                          sx={{ color: 'secondary.main', border: '1px solid', borderColor: 'rgba(199, 163, 79, 0.5)' }}
-                        >
-                          <RemoveIcon />
-                        </IconButton>
-                        <Typography variant="body1" sx={{ mx: 1 }}>
-                          {item.quantity}
-                        </Typography>
-                        <IconButton
-                          aria-label="aumentar quantidade"
-                          onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
-                          sx={{ color: 'secondary.main', border: '1px solid', borderColor: 'rgba(199, 163, 79, 0.5)' }}
-                        >
-                          <AddIcon />
-                        </IconButton>
-                        <IconButton
-                          aria-label="remover item"
-                          onClick={() => handleRemoveItem(item.id)}
-                          sx={{ color: 'primary.main', ml: 2, '&:hover': { color: 'error.main' } }}
-                        >
-                          <DeleteIcon />
-                        </IconButton>
-                      </Box>
+                      <IconButton onClick={() => handleRemoveItem(item.id)} sx={{ color: '#ff4444' }}><DeleteIcon /></IconButton>
                     </Box>
-                    <Divider sx={{ my: 2, borderColor: 'rgba(199, 163, 79, 0.1)' }} />
+                    <Divider sx={{ bgcolor: 'rgba(199, 163, 79, 0.1)' }} />
                   </Box>
                 ))}
-
-                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 4 }}>
-                  <Typography variant="h4" sx={{ color: 'text.secondary', fontWeight: 'bold' }}>
-                    Subtotal: ${subtotal.toFixed(2)}
-                  </Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 4, p: 2, bgcolor: 'rgba(199, 163, 79, 0.05)' }}>
+                  <Typography variant="h4" sx={{ color: 'secondary.main' }}>Total: R$ {subtotal.toFixed(2)}</Typography>
                 </Box>
-                <Box sx={{ mt: 3, textAlign: 'right' }}>
-                  <Button
-                    variant="contained"
-                    color="secondary"
-                    sx={{ width: { xs: '100%', sm: 'auto' } }}
-                  >
-                    Finalizar Compra
-                  </Button>
-                </Box>
+                <Button variant="contained" color="secondary" fullWidth sx={{ mt: 4, py: 2, fontWeight: 'bold' }} onClick={() => setOpenCheckout(true)}>Finalizar Compra</Button>
               </Box>
             ) : (
-              <Box sx={{ textAlign: 'center', p: 4 }}>
-                <Typography variant="h5" sx={{ color: 'text.secondary' }}>
-                  Seu carrinho está vazio.
-                </Typography>
+              <Box sx={{ textAlign: 'center', py: 6 }}>
+                <Typography variant="h5" sx={{ color: 'text.secondary', mb: 4 }}>Seu baú de livros está vazio.</Typography>
+                <Button variant="outlined" color="secondary" onClick={() => navigate('/list-produto')}>Explorar Acervo</Button>
               </Box>
             )}
           </Paper>
         </Container>
+
+        {/* MODAL DE CHECKOUT COM SELEÇÃO DE PAGAMENTO */}
+        <Modal open={openCheckout} onClose={() => !finalizando && setOpenCheckout(false)}>
+          <Box sx={modalStyle}>
+            <Typography variant="h5" sx={{ fontFamily: 'Cinzel', color: 'secondary.main', mb: 3, textAlign: 'center' }}>Forma de Pagamento</Typography>
+            
+            <FormControl component="fieldset" sx={{ width: '100%', mb: 3 }}>
+              <RadioGroup value={metodoPagamento} onChange={(e) => setMetodoPagamento(e.target.value)}>
+                <Paper sx={{ p: 1, mb: 1, border: metodoPagamento === 'cartao' ? '1px solid #C7A34F' : 'none' }}>
+                  <FormControlLabel value="cartao" control={<Radio color="secondary" />} label="Cartão de Crédito" />
+                </Paper>
+                <Paper sx={{ p: 1, border: metodoPagamento === 'pix' ? '1px solid #C7A34F' : 'none' }}>
+                  <FormControlLabel value="pix" control={<Radio color="secondary" />} label="PIX (Aprovação Instantânea)" />
+                </Paper>
+              </RadioGroup>
+            </FormControl>
+
+            {metodoPagamento === 'cartao' ? (
+              <Grid container spacing={2}>
+                <Grid item xs={12}><TextField fullWidth label="Nome no Cartão" size="small" /></Grid>
+                <Grid item xs={12}><TextField fullWidth label="Número" size="small" /></Grid>
+                <Grid item xs={6}><TextField fullWidth label="Validade" size="small" /></Grid>
+                <Grid item xs={6}><TextField fullWidth label="CVV" size="small" /></Grid>
+              </Grid>
+            ) : (
+              <Box sx={{ textAlign: 'center', p: 2, border: '1px dashed #C7A34F' }}>
+                <QrCodeIcon sx={{ fontSize: 100, color: 'secondary.main' }} />
+                <Typography variant="body2">Escaneie o código após confirmar</Typography>
+              </Box>
+            )}
+
+            <Button 
+              variant="contained" color="secondary" fullWidth sx={{ mt: 3, fontWeight: 'bold' }}
+              onClick={handleFinalizarPagamento} disabled={finalizando}
+            >
+              {finalizando ? <CircularProgress size={24} /> : `Pagar R$ ${subtotal.toFixed(2)}`}
+            </Button>
+          </Box>
+        </Modal>
+
+        {/* MODAL DE ENTREGA DOS LIVROS (PÓS-PAGAMENTO) */}
+        <Modal open={openEntrega}>
+          <Box sx={modalStyle}>
+            <Typography variant="h5" sx={{ fontFamily: 'Cinzel', color: 'secondary.main', mb: 3, textAlign: 'center' }}>Acesso Liberado!</Typography>
+            <Typography variant="body2" sx={{ mb:3, textAlign: 'center' }}>Clique no livro para abrir o manuscrito:</Typography>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {livrosComprados.map(livro => (
+                <Button 
+                  key={livro.id} variant="outlined" color="secondary" 
+                  startIcon={<BookIcon />} onClick={() => setPdfAtivo(livro.pdfUrl)}
+                >
+                  Abrir {livro.name}
+                </Button>
+              ))}
+            </Box>
+            <Button fullWidth sx={{ mt: 4 }} onClick={() => navigate('/')}>Voltar à Loja</Button>
+          </Box>
+        </Modal>
+
+        {/* MODAL DO LEITOR DE PDF */}
+        <Modal open={!!pdfAtivo} onClose={() => setPdfAtivo(null)}>
+          <Box sx={pdfModalStyle}>
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', p: 1, bgcolor: '#C7A34F' }}>
+              <IconButton onClick={() => setPdfAtivo(null)} size="small" sx={{ color: '#000' }}><CloseIcon /></IconButton>
+            </Box>
+            <iframe src={pdfAtivo} width="100%" height="100%" style={{ border: 'none' }} title="Leitor Pluma" />
+          </Box>
+        </Modal>
+
+        <FooterComponent />
+        <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={() => setSnackbar({ ...snackbar, open: false })}>
+          <Alert severity={snackbar.severity} variant="filled">{snackbar.message}</Alert>
+        </Snackbar>
       </Box>
     </ThemeProvider>
   );

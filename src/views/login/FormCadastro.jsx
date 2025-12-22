@@ -10,358 +10,205 @@ import {
   TextField,
   Link,
   CssBaseline,
-  Fade
+  Fade,
+  Snackbar,
+  Alert,
+  CircularProgress
 } from '@mui/material';
-
+import { supabase } from '../../services/supabaseClient';
 import '@fontsource/monsieur-la-doulaise';
 import '@fontsource/cinzel';
 import '@fontsource/playfair-display';
 import '@fontsource/crimson-text';
+import { FooterComponent } from '../../MenuSistema';
 
-// O tema foi replicado aqui para que o componente seja autossuficiente e funcione corretamente.
 const gothicTheme = createTheme({
   palette: {
     mode: 'dark',
-    primary: {
-      main: '#280000',
-      light: '#450000',
-      dark: '#1a0000'
-    },
-    secondary: {
-      main: '#C7A34F',
-      light: '#E8C87E',
-      dark: '#A3873A'
-    },
-    background: {
-      default: '#0A0A0A',
-      paper: '#121212'
-    },
-    text: {
-      primary: '#F0F0F0',
-      secondary: '#C7A34F'
-    }
+    primary: { main: '#280000', light: '#450000', dark: '#1a0000' },
+    secondary: { main: '#C7A34F', light: '#E8C87E', dark: '#A3873A' },
+    background: { default: '#0A0A0A', paper: '#121212' },
+    text: { primary: '#F0F0F0', secondary: '#C7A34F' }
   },
   typography: {
     fontFamily: '"Cinzel", "Playfair Display", serif',
-    h1: {
-      fontSize: '3.5rem',
-      fontWeight: 700,
-      letterSpacing: '0.1em'
-    },
-    h2: {
-      fontSize: '2.5rem',
-      fontWeight: 600,
-      letterSpacing: '0.05em'
-    },
-    h4: {
-      color: '#C7A34F',
-      fontWeight: 500,
-      letterSpacing: '0.05em'
-    },
-    h5: {
-      fontWeight: 400,
-      fontStyle: 'italic',
-      letterSpacing: '0.03em'
-    },
-    body1: {
-      fontFamily: '"Crimson Text", serif',
-      fontSize: '1.1rem',
-      lineHeight: 1.6
-    }
-  },
-  components: {
-    MuiCssBaseline: {
-      styleOverrides: {
-        'html, body': {
-          margin: 0,
-          padding: 0,
-          height: '100%',
-          width: '100%',
-        },
-        '@global': {
-          '@font-face': [
-            {
-              fontFamily: 'Cinzel',
-              fontStyle: 'normal',
-              fontDisplay: 'swap'
-            }
-          ],
-          body: {
-            scrollBehavior: 'smooth'
-          }
-        }
-      }
-    },
-    MuiButton: {
-      styleOverrides: {
-        root: {
-          borderRadius: 0,
-          padding: '8px 24px',
-          textTransform: 'uppercase',
-          letterSpacing: '0.1em',
-          transition: 'all 0.3s ease',
-          '&:hover': {
-            transform: 'translateY(-2px)'
-          }
-        },
-        containedSecondary: {
-          color: '#0A0A0A',
-          '&:hover': {
-            backgroundColor: '#E8C87E'
-          }
-        }
-      }
-    },
-    MuiTextField: {
-      styleOverrides: {
-        root: {
-          '& .MuiInputBase-root': {
-            borderRadius: 0,
-            color: '#F0F0F0',
-            fontFamily: '"Crimson Text", serif'
-          },
-          '& .MuiOutlinedInput-notchedOutline': {
-            borderColor: 'rgba(199, 163, 79, 0.5)',
-            transition: 'border-color 0.3s ease'
-          },
-          '&:hover .MuiOutlinedInput-notchedOutline': {
-            borderColor: '#E8C87E !important',
-          },
-          '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-            borderColor: '#C7A34F !important',
-            borderWidth: '2px !important'
-          },
-          '& .MuiInputLabel-root': {
-            color: 'rgba(240, 240, 240, 0.7)',
-            fontFamily: '"Cinzel", serif'
-          },
-          '& .MuiInputLabel-root.Mui-focused': {
-            color: '#C7A34F',
-          },
-          '& .MuiInputBase-input': {
-            padding: '16.5px 14px'
-          }
-        }
-      }
-    },
-    MuiPaper: {
-      styleOverrides: {
-        root: {
-          backgroundColor: 'rgba(18, 18, 18, 0.8)',
-          border: '1px solid rgba(199, 163, 79, 0.2)',
-          backdropFilter: 'blur(4px)'
-        }
-      }
-    }
+    h2: { fontSize: '2.5rem', fontWeight: 600, letterSpacing: '0.05em' },
+    body1: { fontFamily: '"Crimson Text", serif', fontSize: '1.1rem', lineHeight: 1.6 }
   }
 });
 
 const FormCadastro = () => {
-  // Hook para navegação
   const navigate = useNavigate();
+  const [formData, setFormData] = useState({
+    username: '',
+    email: '',
+    senha: '',
+    confirmarSenha: ''
+  });
+  const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success'
+  });
 
-  // Estados para gerenciar os dados do formulário
-  const [nome, setNome] = useState('');
-  const [email, setEmail] = useState('');
-  const [senha, setSenha] = useState('');
-  const [confirmarSenha, setConfirmarSenha] = useState('');
-  const [fade, setFade] = useState(true);
-
-  // Função para lidar com o envio do formulário
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (senha !== confirmarSenha) {
-        console.error('As senhas não coincidem!');
-        // Aqui você pode adicionar um feedback visual para o usuário
-        return;
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    const val = name === 'username' ? value.replace(/\s/g, '').toLowerCase() : value;
+    setFormData(prev => ({ ...prev, [name]: val }));
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: '' }));
     }
-    setFade(false); // Inicia a animação de saída
-    // Simula um atraso antes de cadastrar para a animação
-    setTimeout(() => {
-        console.log('Dados de cadastro:', { nome, email, senha });
-        // Aqui você faria a chamada para a sua API de registro
-        setFade(true); // Retorna a animação de entrada
-        // Lógica de redirecionamento ou de feedback ao usuário
-    }, 500);
   };
-  
-  // Função para voltar à página anterior
-  const handleGoBack = () => {
-    navigate('/');
+
+  const validateForm = () => {
+    let newErrors = {};
+    if (!formData.username.trim()) newErrors.username = 'Nome de usuário é obrigatório';
+    if (formData.username.length < 3) newErrors.username = 'Mínimo de 3 caracteres';
+    if (!formData.email.trim()) newErrors.email = 'E-mail é obrigatório';
+    if (formData.senha.length < 6) newErrors.senha = 'A senha deve ter pelo menos 6 caracteres';
+    if (formData.senha !== formData.confirmarSenha) newErrors.confirmarSenha = 'As senhas não coincidem';
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
+
+ const handleSubmit = async (e) => {
+  e.preventDefault();
+  if (!validateForm()) return;
+  setLoading(true);
+
+  try {
+    
+    const { data: checkData, error: checkError } = await supabase
+      .from('profiles')
+      .select('username')
+      .eq('username', formData.username.toLowerCase());
+
+    if (checkError) throw checkError;
+    if (checkData && checkData.length > 0) {
+      throw new Error('Este nome de usuário já está em uso.');
+    }
+
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email: formData.email,
+      password: formData.senha,
+      options: {
+        data: { username: formData.username }
+      }
+    });
+
+    if (authError) throw authError;
+
+    if (authData?.user) {
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert([
+          { 
+            id: authData.user.id, 
+            username: formData.username.toLowerCase(), 
+            email: formData.email 
+          }
+        ]);
+
+      if (profileError) {
+        console.warn("Perfil não criado via código. Se a confirmação de e-mail estiver ON, isso é normal.");
+      }
+    }
+
+    setSnackbar({
+      open: true,
+      message: 'Cadastro realizado! Verifique seu e-mail para confirmar.',
+      severity: 'success'
+    });
+
+  } catch (error) {
+    setSnackbar({ open: true, message: error.message, severity: 'error' });
+  } finally {
+    setLoading(false);
+  }
+};
+
+  const handleCloseSnackbar = () => setSnackbar(prev => ({ ...prev, open: false }));
 
   return (
     <ThemeProvider theme={gothicTheme}>
       <CssBaseline />
-      <Box
-        sx={{
-          minHeight: '100vh',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          backgroundImage: 'linear-gradient(to bottom, #0A0A0A, #1A1A1A)',
-          p: 2,
-          position: 'relative',
-          overflow: 'hidden',
-          '&::before': {
-            content: '""',
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            height: '100%',
-            backgroundImage: 'radial-gradient(circle at 80% 70%, rgba(199, 163, 79, 0.05) 0%, transparent 20%)',
-            pointerEvents: 'none'
-          }
-        }}
-      >
-        <Fade in={fade} timeout={500}>
-          <Container maxWidth="sm">
-            <Paper
-              elevation={8}
-              sx={{
-                p: { xs: 4, md: 6 },
-                textAlign: 'center',
-                boxShadow: '0 8px 32px 0 rgba(0,0,0,0.3)',
-                border: '1px solid rgba(199, 163, 79, 0.3)',
-                position: 'relative',
-              }}
-            >
-              {/* Botão de voltar */}
-              <Box
-                onClick={handleGoBack}
-                sx={{
-                  position: 'absolute',
-                  top: { xs: 16, md: 24 },
-                  left: { xs: 16, md: 24 },
-                  p: 1,
-                  borderRadius: '50%',
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                  cursor: 'pointer',
-                  transition: 'background-color 0.3s ease, transform 0.3s ease',
-                  '&:hover': {
-                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                    transform: 'scale(1.1)'
-                  }
-                }}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  style={{ color: '#C7A34F' }}
-                >
-                  <path d="M19 12H5M12 19l-7-7 7-7" />
-                </svg>
-              </Box>
+      <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', bgcolor: '#0A0A0A' }}>
+        <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', p: 2 }}>
+          <Fade in={true} timeout={800}>
+            <Container maxWidth="sm">
+              <Paper elevation={8} sx={{ p: { xs: 4, md: 6 }, textAlign: 'center', border: '1px solid rgba(199, 163, 79, 0.3)', bgcolor: '#121212' }}>
+                <Typography variant="h2" gutterBottom sx={{ color: 'secondary.main', fontFamily: 'Cinzel' }}>Registro</Typography>
+                
+                <Box component="form" onSubmit={handleSubmit} noValidate sx={{ mt: 2 }}>
+                  <TextField
+                    margin="normal" required fullWidth 
+                    label="Nome de Usuário (único)" 
+                    name="username"
+                    value={formData.username} 
+                    onChange={handleChange} 
+                    error={!!errors.username} 
+                    helperText={errors.username || "Não use espaços"}
+                  />
+                  <TextField
+                    margin="normal" required fullWidth 
+                    label="E-mail" 
+                    name="email" 
+                    value={formData.email} 
+                    onChange={handleChange} 
+                    error={!!errors.email} 
+                    helperText={errors.email}
+                  />
+                  <TextField
+                    margin="normal" required fullWidth 
+                    label="Senha" 
+                    name="senha" 
+                    type="password"
+                    value={formData.senha} 
+                    onChange={handleChange} 
+                    error={!!errors.senha} 
+                    helperText={errors.senha}
+                  />
+                  <TextField
+                    margin="normal" required fullWidth 
+                    label="Confirme a Senha" 
+                    name="confirmarSenha" 
+                    type="password"
+                    value={formData.confirmarSenha} 
+                    onChange={handleChange} 
+                    error={!!errors.confirmarSenha} 
+                    helperText={errors.confirmarSenha}
+                  />
 
-              <Typography
-                variant="h2"
-                component="h1"
-                gutterBottom
-                sx={{
-                  color: 'secondary.main',
-                  textShadow: '0 0 5px rgba(199, 163, 79, 0.5)'
-                }}
-              >
-                Criar uma Conta
-              </Typography>
-              <Typography
-                variant="body1"
-                sx={{
-                  mb: 4,
-                  fontStyle: 'italic',
-                  color: 'text.secondary'
-                }}
-              >
-                Junte-se à nossa comunidade literária.
-              </Typography>
-
-              <Box component="form" onSubmit={handleSubmit} noValidate sx={{ mt: 1 }}>
-                <TextField
-                  margin="normal"
-                  required
-                  fullWidth
-                  id="nome"
-                  label="Nome Completo"
-                  name="nome"
-                  autoComplete="nome"
-                  autoFocus
-                  value={nome}
-                  onChange={(e) => setNome(e.target.value)}
-                />
-                <TextField
-                  margin="normal"
-                  required
-                  fullWidth
-                  id="email"
-                  label="E-mail"
-                  name="email"
-                  autoComplete="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-                <TextField
-                  margin="normal"
-                  required
-                  fullWidth
-                  name="password"
-                  label="Senha"
-                  type="password"
-                  id="password"
-                  autoComplete="new-password"
-                  value={senha}
-                  onChange={(e) => setSenha(e.target.value)}
-                />
-                <TextField
-                  margin="normal"
-                  required
-                  fullWidth
-                  name="confirmPassword"
-                  label="Confirme a Senha"
-                  type="password"
-                  id="confirmPassword"
-                  autoComplete="new-password"
-                  value={confirmarSenha}
-                  onChange={(e) => setConfirmarSenha(e.target.value)}
-                />
-
-                <Button
-                  type="submit"
-                  fullWidth
-                  variant="contained"
-                  color="secondary"
-                  sx={{ mt: 3, mb: 2 }}
-                >
-                  Cadastrar
-                </Button>
-                <Typography variant="body2" sx={{ mt: 2 }}>
-                  Já tem uma conta?{' '}
-                  <Link
-                    href="#"
-                    variant="body2"
-                    sx={{
-                      color: 'secondary.main',
-                      textDecoration: 'none',
-                      '&:hover': {
-                        textDecoration: 'underline'
-                      }
-                    }}
+                  <Button 
+                    type="submit" 
+                    fullWidth 
+                    variant="contained" 
+                    color="secondary" 
+                    sx={{ mt: 4, mb: 2, height: '50px', fontWeight: 'bold' }} 
+                    disabled={loading}
                   >
-                    Entrar
+                    {loading ? <CircularProgress size={24} color="inherit" /> : 'Criar Conta'}
+                  </Button>
+                  
+                  <Link href="#" onClick={() => navigate('/form-login')} sx={{ color: 'secondary.main', textDecoration: 'none', display: 'block', mt: 2 }}>
+                    Já tenho uma conta
                   </Link>
-                </Typography>
-              </Box>
-            </Paper>
-          </Container>
-        </Fade>
+                </Box>
+              </Paper>
+            </Container>
+          </Fade>
+        </Box>
+        <FooterComponent />
       </Box>
+
+      <Snackbar open={snackbar.open} autoHideDuration={6000} onClose={handleCloseSnackbar} anchorOrigin={{ vertical: 'top', horizontal: 'center' }}>
+        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </ThemeProvider>
   );
 };
