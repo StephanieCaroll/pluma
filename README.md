@@ -6,7 +6,7 @@
 ![GitHub issues](https://img.shields.io/github/issues/StephanieCaroll/pluma?style=for-the-badge)
 ![GitHub pull requests](https://img.shields.io/github/issues-pr/StephanieCaroll/pluma?style=for-the-badge)
 
-<img src="./public/PlumaLogoPrincipal.png" alt="Pluma Logo">
+<img src="https://image.thum.io/get/width/1200/crop/800/https://pluma-smoky.vercel.app/" alt="pluma">
 
 > O **Pluma** é uma plataforma de e-commerce sofisticada, desenvolvida com React e integrada ao Supabase, focada em oferecer uma experiência de compra elegante para produtos exclusivos.
 
