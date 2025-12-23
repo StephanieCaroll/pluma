@@ -1,70 +1,123 @@
-# Getting Started with Create React App
+# ✒️ Pluma
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+![GitHub repo size](https://img.shields.io/github/repo-size/StephanieCaroll/pluma?style=for-the-badge)
+![GitHub language count](https://img.shields.io/github/languages/count/StephanieCaroll/pluma?style=for-the-badge)
+![GitHub forks](https://img.shields.io/github/forks/StephanieCaroll/pluma?style=for-the-badge)
+![GitHub issues](https://img.shields.io/github/issues/StephanieCaroll/pluma?style=for-the-badge)
+![GitHub pull requests](https://img.shields.io/github/issues-pr/StephanieCaroll/pluma?style=for-the-badge)
 
-## Available Scripts
+<img src="./public/PlumaLogoPrincipal.png" alt="Pluma Logo">
 
-In the project directory, you can run:
+> O **Pluma** é uma plataforma de e-commerce sofisticada, desenvolvida com React e integrada ao Supabase, focada em oferecer uma experiência de compra elegante para produtos exclusivos.
 
-### `npm start`
+## ✨ Sobre o Projeto
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+O **Pluma** foi desenvolvido para ser mais do que um simples e-commerce; é uma vitrine digital que preza pela estética e funcionalidade. Utilizando uma paleta de cores dark com acentos em dourado (#C7A34F) e tipografia clássica (Cinzel), o projeto oferece uma interface premium para usuários que buscam exclusividade.
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+### Funcionalidades Principais:
+- **Catálogo de Produtos**: Listagem dinâmica de itens com suporte a categorias.
+- **Gestão de Carrinho**: Adição e gerenciamento de produtos para compra.
+- **Sistema de Favoritos**: Permite aos usuários salvar itens desejados para consulta posterior.
+- **Autenticação Segura**: Login, cadastro e recuperação de senha gerenciados via Supabase.
+- **Design Responsivo**: Interface adaptada para diferentes tamanhos de tela utilizando Material UI.
 
-### `npm test`
+---
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+### Ajustes e melhorias
 
-### `npm run build`
+O projeto ainda está em desenvolvimento e as próximas atualizações serão voltadas para as seguintes tarefas:
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+- [ ] Implementação de filtros avançados por preço e categoria.
+- [ ] Integração de gateway de pagamento para finalização de compras.
+- [ ] Painel administrativo para gerenciamento de estoque e pedidos.
+- [ ] Otimização do sistema de busca global.
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+---
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+## 💻 Pré-requisitos
 
-### `npm run eject`
+Antes de começar, verifique se você atendeu aos seguintes requisitos:
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+- Você instalou a versão mais recente de `Node.js` e `npm`
+- Você possui uma conta no **Supabase** para o backend.`
+- Você tem uma máquina `Windows`, `Linux` ou `Mac`.
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+---
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+## 🚀 Instalando Pluma
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+Para instalar o Pluma, siga estas etapas:
 
-## Learn More
+Linux, macOS e Windows:
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+```bash
+# Clone o repositório
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+git clone [https://github.com/StephanieCaroll/pluma](https://github.com/StephanieCaroll/pluma)
+```
+# Entre no diretório
+```
+cd pluma
+```
+# Instale as dependências
+```
+npm install
+```
+# Configure as variáveis de ambiente no arquivo .env
+```
+# REACT_APP_SUPABASE_URL=sua_url_aqui
+# REACT_APP_SUPABASE_ANON_KEY=sua_chave_aqui
+``` 
+## ☕ Usando Sustentech
+Para usar Sustentech, siga estas etapas:
+```
+npm start
+```
+Acesse http://localhost:3000 no navegador para visualizar a interface. Faça login, acompanhe produtos ou serviços.
 
-### Code Splitting
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+## 👥 Colaboradores
+Agradecemos às seguintes pessoas que contribuíram para este projeto:
 
-### Analyzing the Bundle Size
+<table>
+  <tr>
+    <td align="center">
+      <a href="https://github.com/StephanieCaroll" title="Stephanie Caroline">
+        <img src="https://github.com/StephanieCaroll.png" width="100px;" alt="Foto da Stephanie"/><br>
+        <sub><b>Stephanie Caroline</b></sub>
+      </a>
+    </td>
+  </tr>
+</table>
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
 
-### Making a Progressive Web App
+## 📫 Contribuindo para Pluma
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
 
-### Advanced Configuration
+Para contribuir com **Pluma**, siga estas etapas:
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+1. Bifurque este repositório.
+2. Crie um branch:  
+   ```bash
+   git checkout -b minha-feature
+   ```
+3. Faça suas alterações e confirme-as:
+   ```bash
+   git commit -m 'feat: nova funcionalidade'
+   
+4. Envie para o branch original:
+  ```bash
+  git push origin minha-feature
+```
+5. Crie a solicitação de pull.
+Como alternativa, consulte a documentação oficial do GitHub sobre pull requests.
 
-### Deployment
+## 🤝 Contribuições
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+Sinta-se à vontade para contribuir com este projeto!
 
-### `npm run build` fails to minify
+💡 Sugira novas funcionalidades e melhorias.  
+🐛 Relate bugs ou problemas encontrados.  
+📚 Compartilhe recursos ou ideias para o design.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+   
