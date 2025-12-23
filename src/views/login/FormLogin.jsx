@@ -12,8 +12,12 @@ import {
   CssBaseline,
   Fade,
   Alert,
-  CircularProgress
+  CircularProgress,
+  Modal,
+  Backdrop,
+  IconButton
 } from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
 
 // IMPORTAÇÃO DO SUPABASE
 import { supabase } from '../../services/supabaseClient';
@@ -53,6 +57,20 @@ const gothicTheme = createTheme({
   }
 });
 
+const modalStyle = {
+  position: 'absolute',
+  top: '50%',
+  left: '50%',
+  transform: 'translate(-50%, -50%)',
+  width: { xs: '90%', sm: 450 },
+  bgcolor: '#121212',
+  border: '2px solid #C7A34F',
+  boxShadow: 24,
+  p: 4,
+  textAlign: 'center',
+  outline: 'none'
+};
+
 const FormLogin = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -60,123 +78,80 @@ const FormLogin = () => {
   const [error, setError] = useState(null);
   const [fade, setFade] = useState(true);
 
+  // Estados para o Modal de Esqueci Senha
+  const [openForgot, setOpenForgot] = useState(false);
+  const [emailForgot, setEmailForgot] = useState('');
+  const [loadingForgot, setLoadingForgot] = useState(false);
+  const [msgForgot, setMsgForgot] = useState({ text: '', type: 'success' });
+
   const navigate = useNavigate();
 
-  // FUNÇÃO DE LOGIN REAL COM SUPABASE
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-
     try {
-      // Tentativa de login no Supabase
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: email,
-        password: password,
-      });
-
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
-
-      // Se deu certo, inicia animação de saída e navega
       setFade(false);
-      setTimeout(() => {
-        navigate('/list-produto');
-      }, 500);
-
+      setTimeout(() => navigate('/list-produto'), 500);
     } catch (err) {
-      // Tradução de erros comuns
-      if (err.message === 'Invalid login credentials') {
-        setError('E-mail ou senha incorretos.');
-      } else {
-        setError(err.message);
-      }
+      setError(err.message === 'Invalid login credentials' ? 'E-mail ou senha incorretos.' : err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleRegisterClick = (e) => {
+  const handleForgotSubmit = async (e) => {
     e.preventDefault();
-    navigate('/form-cadastro');
+    setLoadingForgot(true);
+    setMsgForgot({ text: '', type: 'success' });
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(emailForgot, {
+        redirectTo: 'http://localhost:3000/reset-password', // Certifique-se que esta URL bate com seu projeto
+      });
+
+      if (error) throw error;
+
+      setMsgForgot({ 
+        text: 'Enviamos um pergaminho (e-mail) com as instruções de recuperação.', 
+        type: 'success' 
+      });
+    } catch (err) {
+      setMsgForgot({ text: 'Erro ao solicitar recuperação: ' + err.message, type: 'error' });
+    } finally {
+      setLoadingForgot(false);
+    }
   };
 
   return (
     <ThemeProvider theme={gothicTheme}>
       <CssBaseline />
-      <Box
-        sx={{
-          minHeight: '100vh',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          backgroundImage: 'linear-gradient(to bottom, #0A0A0A, #1A1A1A)',
-          p: 2
-        }}
-      >
+      <Box sx={{ minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', backgroundImage: 'linear-gradient(to bottom, #0A0A0A, #1A1A1A)', p: 2 }}>
         <Fade in={fade} timeout={500}>
           <Container maxWidth="sm">
-            <Paper
-              elevation={8}
-              sx={{
-                p: { xs: 4, md: 6 },
-                textAlign: 'center',
-                border: '1px solid rgba(199, 163, 79, 0.3)',
-                bgcolor: 'rgba(18, 18, 18, 0.9)'
-              }}
-            >
-              <Typography variant="h2" component="h1" gutterBottom sx={{ color: 'secondary.main' }}>
-                Entrar na Pluma
-              </Typography>
-              
-              <Typography variant="body1" sx={{ mb: 4, fontStyle: 'italic', color: 'text.secondary' }}>
-                Continue sua jornada literária.
-              </Typography>
+            <Paper elevation={8} sx={{ p: { xs: 4, md: 6 }, textAlign: 'center', border: '1px solid rgba(199, 163, 79, 0.3)', bgcolor: 'rgba(18, 18, 18, 0.9)' }}>
+              <Typography variant="h2" gutterBottom sx={{ color: 'secondary.main' }}>Entrar na Pluma</Typography>
+              <Typography variant="body1" sx={{ mb: 4, fontStyle: 'italic', color: 'text.secondary' }}>Continue sua jornada literária.</Typography>
 
-              {/* MENSAGEM DE ERRO SE O LOGIN FALHAR */}
-              {error && (
-                <Alert severity="error" sx={{ mb: 3, bgcolor: 'rgba(211, 47, 47, 0.1)', color: '#ff8a80' }}>
-                  {error}
-                </Alert>
-              )}
+              {error && <Alert severity="error" sx={{ mb: 3, bgcolor: 'rgba(211, 47, 47, 0.1)', color: '#ff8a80' }}>{error}</Alert>}
 
               <Box component="form" onSubmit={handleSubmit} noValidate>
-                <TextField
-                  margin="normal"
-                  required
-                  fullWidth
-                  label="E-mail"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={loading}
-                />
-                <TextField
-                  margin="normal"
-                  required
-                  fullWidth
-                  label="Senha"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  disabled={loading}
-                />
+                <TextField margin="normal" required fullWidth label="E-mail" value={email} onChange={(e) => setEmail(e.target.value)} disabled={loading} />
+                <TextField margin="normal" required fullWidth label="Senha" type="password" value={password} onChange={(e) => setPassword(e.target.value)} disabled={loading} />
 
-                <Button
-                  type="submit"
-                  fullWidth
-                  variant="contained"
-                  color="secondary"
-                  sx={{ mt: 3, mb: 2, height: '50px' }}
-                  disabled={loading}
-                >
+                <Button type="submit" fullWidth variant="contained" color="secondary" sx={{ mt: 3, mb: 2, height: '50px' }} disabled={loading}>
                   {loading ? <CircularProgress size={24} color="inherit" /> : 'Entrar'}
                 </Button>
 
                 <Box sx={{ mt: 2 }}>
                   <Link
-                    href="#"
+                    component="button"
+                    type="button"
                     variant="body2"
-                    sx={{ color: 'secondary.main', textDecoration: 'none' }}
+                    onClick={() => setOpenForgot(true)}
+                    sx={{ color: 'secondary.main', textDecoration: 'none', cursor: 'pointer', background: 'none', border: 'none' }}
                   >
                     Esqueceu a senha?
                   </Link>
@@ -184,18 +159,66 @@ const FormLogin = () => {
 
                 <Typography variant="body2" sx={{ mt: 3 }}>
                   Não tem uma conta?{' '}
-                  <Link
-                    onClick={handleRegisterClick}
-                    sx={{ cursor: 'pointer', color: 'secondary.main', textDecoration: 'none', fontWeight: 'bold' }}
-                  >
-                    Cadastre-se
-                  </Link>
+                  <Link onClick={() => navigate('/form-cadastro')} sx={{ cursor: 'pointer', color: 'secondary.main', textDecoration: 'none', fontWeight: 'bold' }}>Cadastre-se</Link>
                 </Typography>
               </Box>
             </Paper>
           </Container>
         </Fade>
       </Box>
+
+      <Modal
+        open={openForgot}
+        onClose={() => setOpenForgot(false)}
+        closeAfterTransition
+        slots={{ backdrop: Backdrop }}
+        slotProps={{ backdrop: { timeout: 500 } }}
+      >
+        <Fade in={openForgot}>
+          <Box sx={modalStyle}>
+            <IconButton 
+              onClick={() => setOpenForgot(false)} 
+              sx={{ position: 'absolute', right: 8, top: 8, color: 'secondary.main' }}
+            >
+              <CloseIcon />
+            </IconButton>
+            
+            <Typography variant="h5" sx={{ color: 'secondary.main', mb: 2, fontFamily: 'Cinzel' }}>
+              Recuperar Acesso
+            </Typography>
+            
+            <Typography variant="body2" sx={{ mb: 3, color: 'text.secondary' }}>
+              Informe seu e-mail para receber as instruções de renovação.
+            </Typography>
+
+            {msgForgot.text && (
+              <Alert severity={msgForgot.type} sx={{ mb: 2, fontSize: '0.8rem' }}>
+                {msgForgot.text}
+              </Alert>
+            )}
+
+            <Box component="form" onSubmit={handleForgotSubmit}>
+              <TextField 
+                fullWidth 
+                label="E-mail de cadastro" 
+                required 
+                value={emailForgot}
+                onChange={(e) => setEmailForgot(e.target.value)}
+                sx={{ mb: 3 }}
+              />
+              <Button 
+                fullWidth 
+                variant="contained" 
+                color="secondary" 
+                type="submit"
+                disabled={loadingForgot}
+              >
+                {loadingForgot ? <CircularProgress size={24} color="inherit" /> : 'Enviar Instruções'}
+              </Button>
+            </Box>
+          </Box>
+        </Fade>
+      </Modal>
     </ThemeProvider>
   );
 };
