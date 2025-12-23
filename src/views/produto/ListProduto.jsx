@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import {
   Typography, Box, Button, Container, Grid, Card, CardMedia, CardContent,
@@ -9,14 +9,13 @@ import CloseIcon from '@mui/icons-material/Close';
 import SearchIcon from '@mui/icons-material/Search';
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
+import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
 import Inventory from '@mui/icons-material/Inventory';
-import Language from '@mui/icons-material/Language';
 import CalendarToday from '@mui/icons-material/CalendarToday';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { alpha, styled } from '@mui/material/styles';
 
-// Importação do Cliente Supabase
 import { supabase } from '../../services/supabaseClient';
 import { FooterComponent } from '../../MenuSistema';
 
@@ -53,6 +52,7 @@ const SearchIconWrapper = styled('div')(({ theme }) => ({
   display: 'flex',
   alignItems: 'center',
   color: '#C7A34F',
+  zIndex: 1
 }));
 
 const StyledInputBase = styled(InputBase)(({ theme }) => ({
@@ -65,25 +65,11 @@ const StyledInputBase = styled(InputBase)(({ theme }) => ({
   },
 }));
 
-// ESTILO DO MODAL ATUALIZADO PARA RESPONSIVIDADE
 const modalStyle = {
-  position: 'absolute',
-  top: '50%',
-  left: '50%',
-  transform: 'translate(-50%, -50%)',
-  width: '95%',
-  maxWidth: 800,
-  maxHeight: '90vh', // Não deixa o modal vazar a altura da tela
-  bgcolor: 'background.paper',
-  border: '2px solid #C7A34F',
-  boxShadow: 24,
-  p: { xs: 2, md: 4 }, // Padding menor no celular
-  display: 'flex',
-  flexDirection: { xs: 'column', md: 'row' }, // Empilha no celular, lado a lado no PC
-  gap: 3,
-  outline: 'none',
-  overflowY: 'auto', // Ativa rolagem se o conteúdo for grande
-  borderRadius: '8px'
+  position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+  width: '95%', maxWidth: 800, maxHeight: '90vh', bgcolor: '#121212',
+  border: '2px solid #C7A34F', boxShadow: 24, p: { xs: 2, md: 4 },
+  display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 3, outline: 'none', overflowY: 'auto'
 };
 
 const ListProduto = () => {
@@ -92,6 +78,7 @@ const ListProduto = () => {
   const [selectedProduto, setSelectedProduto] = useState(null);
   const [produtos, setProdutos] = useState([]);
   const [favoritos, setFavoritos] = useState([]);
+  const [meusLivrosIds, setMeusLivrosIds] = useState([]);
   const [carregando, setCarregando] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
@@ -99,48 +86,59 @@ const ListProduto = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const carregarDados = async () => {
+  const categoriaFiltro = location.state?.categoria;
+
+  const carregarDadosECompras = useCallback(async (termo = '') => {
     try {
       setCarregando(true);
-      const searchParams = new URLSearchParams(location.search);
-      const search = searchParams.get('search') || '';
-      setSearchTerm(search);
-
       const { data: { user } } = await supabase.auth.getUser();
 
       let query = supabase.from('produtos').select('*');
-      
-      if (search) {
-        query = query.or(`titulo.ilike.%${search}%,autor.ilike.%${search}%`);
+
+      if (categoriaFiltro) {
+        query = query.eq('genero', categoriaFiltro);
       }
-      
-      const { data, error } = await query;
-      if (error) throw error;
-      setProdutos(data || []);
+
+      if (termo) {
+        query = query.or(`titulo.ilike.%${termo}%,autor.ilike.%${termo}%`);
+      }
+
+      const { data: prodData, error: prodError } = await query;
+      if (prodError) throw prodError;
+      setProdutos(prodData || []);
 
       if (user) {
         const { data: favs } = await supabase.from('favoritos').select('produto_id').eq('usuario_id', user.id);
         setFavoritos(favs?.map(f => f.produto_id) || []);
+
+        const { data: pedidosData } = await supabase
+          .from('pedidos')
+          .select('produtos_ids')
+          .eq('usuario_id', user.id);
+        
+        if (pedidosData) {
+          setMeusLivrosIds([...new Set(pedidosData.flatMap(p => p.produtos_ids))]);
+        }
       }
     } catch (err) {
-      console.error('Erro:', err);
+      console.error('Erro ao carregar dados:', err);
     } finally {
       setCarregando(false);
     }
-  };
+  }, [categoriaFiltro]); 
 
   useEffect(() => {
-    carregarDados();
-  }, [location.search]);
+    const delayDebounceFn = setTimeout(() => {
+      carregarDadosECompras(searchTerm);
+    }, 300);
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchTerm, categoriaFiltro, carregarDadosECompras]);
 
   const handleToggleFavorito = async (e, id) => {
     e.stopPropagation();
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      setSnackbar({ open: true, message: 'Logue para favoritar!', severity: 'error' });
-      return;
-    }
-
+    if (!user) { setSnackbar({ open: true, message: 'Faça login para favoritar!', severity: 'error' }); return; }
+    
     if (favoritos.includes(id)) {
       await supabase.from('favoritos').delete().eq('usuario_id', user.id).eq('produto_id', id);
       setFavoritos(prev => prev.filter(f => f !== id));
@@ -150,9 +148,18 @@ const ListProduto = () => {
     }
   };
 
-  const handleSearch = (e) => {
-    e.preventDefault();
-    navigate(searchTerm.trim() ? `/list-produto?search=${encodeURIComponent(searchTerm)}` : '/list-produto');
+  const handleAdicionarCarrinho = async (produto) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { navigate('/form-login'); return; }
+    try {
+      const { error } = await supabase.from('carrinho').upsert({ 
+        usuario_id: user.id, produto_id: produto.id, quantidade: 1 
+      }, { onConflict: 'usuario_id, produto_id' });
+      if (error) throw error;
+      setSnackbar({ open: true, message: 'Adicionado ao carrinho!', severity: 'success' });
+    } catch (err) {
+      setSnackbar({ open: true, message: 'Erro ao adicionar.', severity: 'error' });
+    }
   };
 
   return (
@@ -160,58 +167,57 @@ const ListProduto = () => {
       <CssBaseline />
       <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#0A0A0A' }}>
         <Container maxWidth="xl" sx={{ py: 8, flexGrow: 1 }}>
-          <Typography variant="h2" align="center" sx={{ mb: 6, color: 'secondary.main', fontSize: { xs: '2rem', md: '3rem' } }}>
-            {searchTerm ? `Resultados para: "${searchTerm}"` : 'Nossas Obras'}
+          <Typography variant="h2" align="center" sx={{ mb: 2, color: 'secondary.main', fontSize: { xs: '2.5rem', md: '3.5rem' } }}>
+            Nossas Obras
           </Typography>
+          
+          {categoriaFiltro && (
+            <Typography variant="h6" align="center" sx={{ mb: 4, color: 'secondary.light', fontStyle: 'italic' }}>
+              Categoria: {categoriaFiltro}
+            </Typography>
+          )}
 
           <Box sx={{ display: 'flex', justifyContent: 'center', mb: 6 }}>
-            <Search component="form" onSubmit={handleSearch} sx={{ maxWidth: 600 }}>
+            <Search sx={{ maxWidth: 600 }}>
               <SearchIconWrapper><SearchIcon /></SearchIconWrapper>
               <StyledInputBase
-                placeholder="Pesquisar livros, autores..."
+                placeholder="Pesquise por manuscrito ou autor..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </Search>
           </Box>
 
-          {carregando ? (
-            <Box display="flex" justifyContent="center"><CircularProgress color="secondary" /></Box>
+          {carregando && produtos.length === 0 ? (
+            <Box display="flex" justifyContent="center" py={10}><CircularProgress color="secondary" /></Box>
           ) : (
-            <Grid container spacing={4} justifyContent="center" alignItems="stretch">
+            <Grid container spacing={4} justifyContent="center">
               {produtos.map((produto) => (
                 <Grid item key={produto.id} xs={12} sm={6} md={4} lg={3} sx={{ display: 'flex', justifyContent: 'center' }}>
                   <Card 
                     onClick={() => { setSelectedProduto(produto); setOpen(true); }}
-                    sx={{ 
-                      width: '100%', maxWidth: '320px', height: '550px',
-                      display: 'flex', flexDirection: 'column',
-                      cursor: 'pointer'
-                    }}
+                    sx={{ width: '300px', height: '580px', display: 'flex', flexDirection: 'column', cursor: 'pointer', bgcolor: '#121212', border: '1px solid rgba(199,163,79,0.2)', transition: '0.3s', '&:hover': { transform: 'translateY(-10px)', borderColor: '#C7A34F' } }}
                   >
-                    <Box sx={{ position: 'relative', height: '350px', flexShrink: 0 }}>
-                      <CardMedia 
-                        component="img" 
-                        image={produto.url_capa} 
-                        sx={{ height: '100%', objectFit: 'cover' }} 
-                      />
+                    <Box sx={{ position: 'relative', height: '380px', overflow: 'hidden' }}>
+                      <CardMedia component="img" image={produto.url_capa} sx={{ height: '100%', objectFit: 'cover' }} />
                       <IconButton 
                         onClick={(e) => handleToggleFavorito(e, produto.id)}
-                        sx={{ position: 'absolute', top: 8, right: 8, bgcolor: 'rgba(0,0,0,0.5)', color: favoritos.includes(produto.id) ? '#ff1744' : 'white' }}
+                        sx={{ position: 'absolute', top: 8, right: 8, bgcolor: 'rgba(0,0,0,0.5)', color: favoritos.includes(produto.id) ? '#ff1744' : '#FFFFFF' }}
                       >
                         {favoritos.includes(produto.id) ? <FavoriteIcon /> : <FavoriteBorderIcon />}
                       </IconButton>
                     </Box>
-                    <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', textAlign: 'center' }}>
-                      <Box>
-                        <Typography variant="h6" sx={{ color: 'secondary.main', height: '2.8rem', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
-                          {produto.titulo}
-                        </Typography>
-                        <Typography variant="body2" sx={{ color: '#aaa', fontStyle: 'italic' }}>{produto.autor}</Typography>
-                      </Box>
-                      <Typography variant="h5" sx={{ mt: 2 }}>
-                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(produto.preco || 0)}
+                    <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', textAlign: 'center', p: 2 }}>
+                      <Typography variant="h6" sx={{ color: 'secondary.main', height: '3.2rem', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', mb: 1, fontSize: '1.1rem' }}>
+                        {produto.titulo}
                       </Typography>
+                      <Typography variant="body2" sx={{ color: '#aaa', fontStyle: 'italic', mb: 0.5 }}>{produto.autor}</Typography>
+                      <Typography variant="caption" sx={{ color: 'secondary.light', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold', mb: 2 }}>{produto.genero}</Typography>
+                      <Box sx={{ mt: 'auto' }}>
+                        <Typography variant="h5" sx={{ color: 'white', fontWeight: 'bold' }}>
+                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(produto.preco || 0)}
+                        </Typography>
+                      </Box>
                     </CardContent>
                   </Card>
                 </Grid>
@@ -220,55 +226,34 @@ const ListProduto = () => {
           )}
         </Container>
 
-        {/* Modal de Detalhes - AGORA RESPONSIVO */}
-        <Modal open={open} onClose={() => setOpen(false)} closeAfterTransition slots={{ backdrop: Backdrop }} slotProps={{ backdrop: { timeout: 500 } }}>
+        <Modal open={open} onClose={() => setOpen(false)} closeAfterTransition slots={{ backdrop: Backdrop }}>
           <Fade in={open}>
             <Box sx={modalStyle}>
-              {/* Botão de fechar fixo no topo direito do modal */}
               <IconButton onClick={() => setOpen(false)} sx={{ position: 'absolute', right: 8, top: 8, color: 'secondary.main', zIndex: 10 }}><CloseIcon /></IconButton>
-              
               {selectedProduto && (
                 <>
                   <Box sx={{ flex: { xs: 'none', md: 1 }, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                    <CardMedia 
-                        component="img" 
-                        sx={{ 
-                            maxHeight: { xs: '250px', md: '450px' }, 
-                            width: 'auto', 
-                            objectFit: 'contain',
-                            borderRadius: '4px'
-                        }} 
-                        image={selectedProduto.url_capa} 
-                    />
+                    <CardMedia component="img" sx={{ maxHeight: { xs: '250px', md: '450px' }, width: 'auto', objectFit: 'contain', borderRadius: '4px' }} image={selectedProduto.url_capa} />
                   </Box>
-
                   <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                    <Typography variant="h4" sx={{ color: 'secondary.main', fontSize: { xs: '1.5rem', md: '2.1rem' } }}>{selectedProduto.titulo}</Typography>
-                    <Typography variant="h6" sx={{ fontStyle: 'italic', color: '#aaa', mb: 1 }}>{selectedProduto.autor}</Typography>
+                    <Typography variant="h4" sx={{ color: 'secondary.main', fontFamily: 'Cinzel' }}>{selectedProduto.titulo}</Typography>
+                    <Typography variant="h6" sx={{ fontStyle: 'italic', color: '#aaa' }}>{selectedProduto.autor}</Typography>
                     <Divider sx={{ my: 1 }} />
-                    
-                    <Typography sx={{ mb: 2, color: '#ccc', textAlign: 'justify', fontSize: '0.95rem' }}>
-                        {selectedProduto.descricao}
-                    </Typography>
-
+                    <Typography sx={{ mb: 2, color: '#ccc', fontSize: '0.95rem', textAlign: 'justify' }}>{selectedProduto.descricao}</Typography>
                     <Grid container spacing={1} sx={{ mb: 2 }}>
-                      <Grid item xs={6}>
-                        <Box display="flex" alignItems="center">
-                            <Inventory fontSize="small" sx={{ mr: 1, color: 'secondary.main' }}/>
-                            <Typography variant="caption">{selectedProduto.genero}</Typography>
-                        </Box>
-                      </Grid>
-                      <Grid item xs={6}>
-                        <Box display="flex" alignItems="center">
-                            <CalendarToday fontSize="small" sx={{ mr: 1, color: 'secondary.main' }}/>
-                            <Typography variant="caption">{selectedProduto.ano_publicacao}</Typography>
-                        </Box>
-                      </Grid>
+                      <Grid item xs={6}><Box display="flex" alignItems="center"><Inventory sx={{ mr: 1, color: 'secondary.main' }} fontSize="small"/><Typography variant="caption">{selectedProduto.genero}</Typography></Box></Grid>
+                      <Grid item xs={6}><Box display="flex" alignItems="center"><CalendarToday sx={{ mr: 1, color: 'secondary.main' }} fontSize="small"/><Typography variant="caption">{selectedProduto.ano_publicacao}</Typography></Box></Grid>
                     </Grid>
 
-                    <Button variant="contained" color="secondary" fullWidth sx={{ mt: 'auto', py: 1.5 }} onClick={() => setOpenPdf(true)}>
-                        Ler Obra
-                    </Button>
+                    {meusLivrosIds.includes(selectedProduto.id) ? (
+                      <Button variant="contained" color="secondary" fullWidth sx={{ mt: 'auto', py: 1.5 }} onClick={() => setOpenPdf(true)} startIcon={<MenuBookIcon />}>
+                        Ler Manuscrito
+                      </Button>
+                    ) : (
+                      <Button variant="contained" color="secondary" fullWidth sx={{ mt: 'auto', py: 1.5 }} onClick={() => handleAdicionarCarrinho(selectedProduto)} startIcon={<ShoppingCartIcon />}>
+                        Adicionar ao Carrinho
+                      </Button>
+                    )}
                   </Box>
                 </>
               )}
@@ -276,19 +261,18 @@ const ListProduto = () => {
           </Fade>
         </Modal>
 
-        {/* Modal PDF - Também com ajuste de altura */}
         <Modal open={openPdf} onClose={() => setOpenPdf(false)}>
-          <Box sx={{ position: 'absolute', top: '2%', left: '2%', width: '96%', height: '96%', bgcolor: '#1e1e1e', border: '2px solid #C7A34F', borderRadius: '8px', overflow: 'hidden' }}>
+          <Box sx={{ position: 'absolute', top: '5%', left: '5%', width: '90%', height: '90%', bgcolor: '#000', border: '2px solid #C7A34F' }}>
             <Box sx={{ p: 1, bgcolor: '#C7A34F', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Typography sx={{ color: 'black', fontWeight: 'bold', fontSize: '0.9rem', ml: 1 }}>{selectedProduto?.titulo}</Typography>
+              <Typography sx={{ color: 'black', fontWeight: 'bold' }}>{selectedProduto?.titulo}</Typography>
               <IconButton onClick={() => setOpenPdf(false)}><CloseIcon sx={{ color: 'black' }} /></IconButton>
             </Box>
-            <iframe src={selectedProduto?.url_arquivo_pdf} width="100%" height="100%" style={{ border: 'none' }} title="Leitor PDF"/>
+            <iframe src={selectedProduto?.url_arquivo_pdf} width="100%" height="95%" style={{ border: 'none' }} title="Leitor PDF"/>
           </Box>
         </Modal>
 
         <Snackbar open={snackbar.open} autoHideDuration={3000} onClose={() => setSnackbar({ ...snackbar, open: false })}>
-          <Alert severity={snackbar.severity}>{snackbar.message}</Alert>
+          <Alert severity={snackbar.severity} variant="filled">{snackbar.message}</Alert>
         </Snackbar>
         <FooterComponent />
       </Box>

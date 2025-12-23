@@ -8,8 +8,6 @@ import { createTheme, ThemeProvider } from '@mui/material/styles';
 import EditIcon from '@mui/icons-material/Edit';
 import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
 import LogoutIcon from '@mui/icons-material/Logout';
-import SaveIcon from '@mui/icons-material/Save';
-import CancelIcon from '@mui/icons-material/Cancel';
 import BookIcon from '@mui/icons-material/MenuBook';
 import CloseIcon from '@mui/icons-material/Close';
 import { supabase } from '../../services/supabaseClient';
@@ -73,15 +71,12 @@ const Perfil = () => {
           .eq('usuario_id', currentUser.id);
 
         if (pedidosData && pedidosData.length > 0) {
-         
           const todosIds = [...new Set(pedidosData.flatMap(p => p.produtos_ids))];
-          
           if (todosIds.length > 0) {
             const { data: livrosData } = await supabase
               .from('produtos')
               .select('id, titulo, url_capa, url_arquivo_pdf')
               .in('id', todosIds);
-            
             setMeusLivros(livrosData || []);
           }
         }
@@ -111,7 +106,7 @@ const Perfil = () => {
       setUpdating(true);
       const file = event.target.files[0];
       if (!file) return;
-      const fileName = `${user.id}-${Math.random()}.${file.name.split('.').pop()}`;
+      const fileName = `${user.id}-${Date.now()}.${file.name.split('.').pop()}`;
       await supabase.storage.from('avatars').upload(fileName, file);
       const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(fileName);
       await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', user.id);
@@ -140,7 +135,7 @@ const Perfil = () => {
         <Container maxWidth="lg" sx={{ py: 6, flexGrow: 1 }}>
           <Grid container spacing={4}>
             
-            {/*DADOS DO PERFIL */}
+            {/* DADOS DO PERFIL */}
             <Grid item xs={12} md={4}>
               <Paper elevation={8} sx={{ p: 4, border: '1px solid rgba(199, 163, 79, 0.3)', bgcolor: '#121212', position: 'relative' }}>
                 {!isEditing && (
@@ -172,7 +167,7 @@ const Perfil = () => {
                     <TextField label="Username" size="small" value={profile.username} onChange={(e) => setProfile({...profile, username: e.target.value.toLowerCase()})} />
                     <Box sx={{ display: 'flex', gap: 1 }}>
                       <Button fullWidth variant="contained" color="secondary" onClick={handleUpdate} disabled={updating}>Salvar</Button>
-                      <Button fullWidth variant="outlined" onClick={() => setIsEditing(false)}>X</Button>
+                      <Button fullWidth variant="outlined" onClick={() => setIsEditing(false)}>Cancelar</Button>
                     </Box>
                   </Box>
                 ) : (
@@ -185,26 +180,52 @@ const Perfil = () => {
               </Paper>
             </Grid>
 
-            {/*MINHA COLEÇÃO */}
+            {/* MINHA COLEÇÃO */}
             <Grid item xs={12} md={8}>
               <Typography variant="h4" sx={{ fontFamily: 'Cinzel', color: 'secondary.main', mb: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
                 <BookIcon /> Minha Coleção
               </Typography>
               
               {meusLivros.length > 0 ? (
-                <Grid container spacing={2}>
+                <Grid container spacing={3} justifyContent={{ xs: 'center', sm: 'flex-start' }}>
                   {meusLivros.map((livro) => (
-                    <Grid item key={livro.id} xs={6} sm={4} md={3}>
+                    <Grid item key={livro.id} sx={{ display: 'flex', justifyContent: 'center' }}>
                       <Card 
                         onClick={() => setPdfAtivo(livro.url_arquivo_pdf)}
                         sx={{ 
-                          cursor: 'pointer', bgcolor: '#121212', border: '1px solid rgba(199,163,79,0.2)',
-                          transition: '0.3s', '&:hover': { transform: 'scale(1.05)', borderColor: 'secondary.main' }
+                          width: '180px', 
+                          height: '320px', 
+                          cursor: 'pointer', 
+                          bgcolor: '#121212', 
+                          border: '1px solid rgba(199,163,79,0.2)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          transition: '0.3s', 
+                          '&:hover': { transform: 'scale(1.05)', borderColor: 'secondary.main', boxShadow: '0 0 15px rgba(199, 163, 79, 0.3)' }
                         }}
                       >
-                        <CardMedia component="img" height="200" image={livro.url_capa} sx={{ objectFit: 'cover' }} />
-                        <Box sx={{ p: 1, textAlign: 'center' }}>
-                          <Typography variant="caption" sx={{ color: 'secondary.main', fontWeight: 'bold', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <Box sx={{ height: '250px', overflow: 'hidden' }}>
+                          <CardMedia 
+                            component="img" 
+                            image={livro.url_capa} 
+                            sx={{ height: '100%', objectFit: 'cover' }} 
+                            alt={livro.titulo}
+                          />
+                        </Box>
+                        <Box sx={{ p: 1.5, textAlign: 'center', flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Typography 
+                            variant="caption" 
+                            sx={{ 
+                              color: 'secondary.main', 
+                              fontWeight: 'bold', 
+                              lineHeight: '1.2em',
+                              height: '2.4em',
+                              overflow: 'hidden',
+                              display: '-webkit-box',
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: 'vertical'
+                            }}
+                          >
                             {livro.titulo}
                           </Typography>
                         </Box>
@@ -235,6 +256,7 @@ const Perfil = () => {
 
         <FooterComponent />
       </Box>
+
       <Snackbar open={snackbar.open} autoHideDuration={4000} onClose={() => setSnackbar({ ...snackbar, open: false })}>
         <Alert severity={snackbar.severity} sx={{ border: '1px solid #C7A34F', bgcolor: '#121212', color: '#F0F0F0' }}>{snackbar.message}</Alert>
       </Snackbar>
