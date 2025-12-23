@@ -50,9 +50,8 @@ Para instalar o Pluma, siga estas etapas:
 
 Linux, macOS e Windows:
 
-```bash
 # Clone o repositório
-
+```
 git clone [https://github.com/StephanieCaroll/pluma](https://github.com/StephanieCaroll/pluma)
 ```
 # Entre no diretório
