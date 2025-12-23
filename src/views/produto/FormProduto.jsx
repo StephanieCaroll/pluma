@@ -26,7 +26,8 @@ import {
   Event, 
   Image as ImageIcon, 
   PictureAsPdf,
-  Create
+  Create,
+  Payments 
 } from '@mui/icons-material';
 import { supabase } from '../../services/supabaseClient';
 import { FooterComponent } from '../../MenuSistema';
@@ -76,7 +77,7 @@ const FormProduto = () => {
   const [produto, setProduto] = useState({
     titulo: '', autor: '', descricao: '', genero: '',
     idioma: 'Português', numero_paginas: '', ano_publicacao: '',
-    url_capa: '', url_arquivo_pdf: ''
+    url_capa: '', url_arquivo_pdf: '', preco: '' 
   });
 
   const handleChange = (e) => {
@@ -91,11 +92,18 @@ const FormProduto = () => {
       const { error } = await supabase.from('produtos').insert([{
         ...produto,
         numero_paginas: parseInt(produto.numero_paginas) || 0,
-        ano_publicacao: parseInt(produto.ano_publicacao) || 0
+        ano_publicacao: parseInt(produto.ano_publicacao) || 0,
+        preco: parseFloat(produto.preco) || 0 
       }]);
+      
       if (error) throw error;
+      
       setSnackbar({ open: true, message: 'Obra imortalizada com sucesso!', severity: 'success' });
-      setProduto({ titulo: '', autor: '', descricao: '', genero: '', idioma: 'Português', numero_paginas: '', ano_publicacao: '', url_capa: '', url_arquivo_pdf: '' });
+      setProduto({ 
+        titulo: '', autor: '', descricao: '', genero: '', 
+        idioma: 'Português', numero_paginas: '', ano_publicacao: '', 
+        url_capa: '', url_arquivo_pdf: '', preco: '' 
+      });
     } catch (error) {
       setSnackbar({ open: true, message: 'Erro: ' + error.message, severity: 'error' });
     } finally { setLoading(false); }
@@ -145,15 +153,22 @@ const FormProduto = () => {
                       InputProps={{ startAdornment: (<InputAdornment position="start"><Category sx={{ color: 'secondary.dark' }} /></InputAdornment>) }} />
                   </Grid>
                   <Grid item xs={12} md={6}>
+                    <StyledTextField fullWidth label="Preço (Ouro)" name="preco" type="number" value={produto.preco} onChange={handleChange} required
+                      InputProps={{ 
+                        startAdornment: (<InputAdornment position="start"><Payments sx={{ color: 'secondary.dark' }} /></InputAdornment>),
+                        step: "0.01" 
+                      }} />
+                  </Grid>
+
+                  <Grid item xs={12} md={4}>
                     <StyledTextField fullWidth label="Páginas" name="numero_paginas" type="number" value={produto.numero_paginas} onChange={handleChange} 
                       InputProps={{ startAdornment: (<InputAdornment position="start"><MenuBook sx={{ color: 'secondary.dark' }} /></InputAdornment>) }} />
                   </Grid>
-
-                  <Grid item xs={12} md={6}>
+                  <Grid item xs={12} md={4}>
                     <StyledTextField fullWidth label="Ano" name="ano_publicacao" type="number" value={produto.ano_publicacao} onChange={handleChange} 
                       InputProps={{ startAdornment: (<InputAdornment position="start"><Event sx={{ color: 'secondary.dark' }} /></InputAdornment>) }} />
                   </Grid>
-                  <Grid item xs={12} md={6}>
+                  <Grid item xs={12} md={4}>
                     <StyledTextField fullWidth label="Idioma" name="idioma" value={produto.idioma} onChange={handleChange} 
                       InputProps={{ startAdornment: (<InputAdornment position="start"><Language sx={{ color: 'secondary.dark' }} /></InputAdornment>) }} />
                   </Grid>
@@ -169,17 +184,12 @@ const FormProduto = () => {
 
                   <Grid item xs={12}>
                     <StyledTextField fullWidth label="Sinopse" name="descricao" multiline rows={5} value={produto.descricao} onChange={handleChange}
-                      InputProps={{ startAdornment: (<InputAdornment position="start" sx={{ alignSelf: 'flex-start',marginTop: '12px',marginRight: '8px'}}
-                          >
+                      InputProps={{ startAdornment: (<InputAdornment position="start" sx={{ alignSelf: 'flex-start', marginTop: '12px', marginRight: '8px'}}>
                             <Create sx={{ color: 'secondary.dark', fontSize: 20 }} />
                           </InputAdornment>
                         ) 
                       }}
-                      sx={{
-                        '& .MuiInputBase-root': {
-                          paddingLeft: '14px' 
-                        }
-                      }}
+                      sx={{ '& .MuiInputBase-root': { paddingLeft: '14px' } }}
                     />
                   </Grid>
 
