@@ -109,7 +109,7 @@ const FormLogin = () => {
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(emailForgot, {
-        redirectTo: 'http://localhost:3000/reset-password', // Certifique-se que esta URL bate com seu projeto
+       redirectTo: 'https://pluma-smoky.vercel.app/reset-password'
       });
 
       if (error) throw error;
